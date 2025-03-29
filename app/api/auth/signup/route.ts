@@ -1,15 +1,19 @@
-// app/api/auth/signup/route.ts
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";
 import { NextResponse } from "next/server";
 
 const prisma = new PrismaClient();
 
+interface SignupRequest {
+    name: string;
+    email: string;
+    password: string;
+}
+
 export async function POST(req: Request) {
     try {
-        const { name, email, password } = await req.json();
+        const { name, email, password }: SignupRequest = await req.json();
 
-        // Validation des données
         if (!name || !email || !password) {
             return NextResponse.json(
                 { message: "Tous les champs sont requis." },
@@ -17,9 +21,9 @@ export async function POST(req: Request) {
             );
         }
 
-        // Vérifier si l'utilisateur existe déjà
         const existingUser = await prisma.user.findUnique({
             where: { user_email: email },
+            select: { user_id: true }
         });
 
         if (existingUser) {
@@ -30,23 +34,29 @@ export async function POST(req: Request) {
         }
 
         const hashedPassword = await bcrypt.hash(password, 12);
+        const userId = crypto.randomUUID();
 
         const user = await prisma.user.create({
             data: {
-                user_id: crypto.randomUUID(),
+                user_id: userId,
                 user_name: name,
                 user_email: email,
                 user_password: hashedPassword,
                 user_first_login_date: new Date(),
             },
+            select: {
+                user_id: true,
+                user_name: true,
+                user_email: true,
+                user_first_login_date: true,
+            },
         });
 
-        
-
-        const { user_password, ...userWithoutPassword } = user;
-
         return NextResponse.json(
-            { user: userWithoutPassword, message: "Inscription réussie." },
+            {
+                user,
+                message: "Inscription réussie."
+            },
             { status: 201 }
         );
     } catch (error) {
@@ -55,5 +65,7 @@ export async function POST(req: Request) {
             { message: "Une erreur est survenue lors de l'inscription." },
             { status: 500 }
         );
+    } finally {
+        await prisma.$disconnect();
     }
 }

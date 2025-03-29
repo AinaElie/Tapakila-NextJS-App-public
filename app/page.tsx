@@ -3,12 +3,23 @@
 import EventCard from "@/components/EventCard";
 import { Slide } from "@mui/material";
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState } from "react";
+import { Autoplay, Navigation, Pagination } from "swiper/modules";
+import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
-import { Autoplay, Navigation, Pagination } from "swiper/modules";
-import { Swiper, SwiperSlide } from "swiper/react";
+
+interface ApiEvent {
+  event_id: string;
+  event_name: string;
+  event_date: string;
+  event_place: string;
+  event_description: string;
+  event_image: string;
+  event_category?: string;
+}
 
 interface Event {
   id: string;
@@ -35,9 +46,9 @@ export default function Home() {
           throw new Error("Erreur de chargement de la page");
         }
 
-        const data = await response.json();
+        const data: ApiEvent[] = await response.json();
 
-        const formattedEvents = data.map((event: any) => ({
+        const formattedEvents: Event[] = data.map((event) => ({
           id: event.event_id,
           name: event.event_name,
           date: event.event_date,
@@ -48,7 +59,6 @@ export default function Home() {
         }));
 
         setEvents(formattedEvents);
-
       } catch (err) {
         setError(err instanceof Error ? err.message : "An error occurred");
       } finally {
@@ -60,9 +70,42 @@ export default function Home() {
   }, []);
 
   const currentDate = new Date();
-
   const upcomingEvents = events.filter((event) => new Date(event.date) >= currentDate);
   const pastEvents = events.filter((event) => new Date(event.date) < currentDate);
+
+  const renderEventSection = (
+    title: string,
+    filterFn: (event: Event) => boolean,
+    bgImage: string,
+    emptyMessage: string
+  ) => (
+    <section className="relative py-12 px-6">
+      <Image
+        src={bgImage}
+        alt={`Background ${title}`}
+        fill
+        className="object-cover"
+        quality={80}
+      />
+      <div className="absolute inset-0 bg-black bg-opacity-50"></div>
+      <div className="relative z-10">
+        <h2 className="text-2xl font-bold text-blancGlacialNeutre mb-8">
+          {title}
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {upcomingEvents.filter(filterFn).length > 0 ? (
+            upcomingEvents.filter(filterFn).map((event) => (
+              <EventCard key={event.id} {...event} />
+            ))
+          ) : (
+            <p className="text-blancGlacialNeutre text-xl text-center col-span-full">
+              {emptyMessage}
+            </p>
+          )}
+        </div>
+      </div>
+    </section>
+  );
 
   return (
     <div className="bg-blancCasse min-h-screen">
@@ -101,40 +144,61 @@ export default function Home() {
         </div>
       </section>
 
-      <section
-        className="relative py-16 bg-cover bg-center"
-        style={{
-          backgroundImage: "url('/img/event.jpg')",
-        }}
-      >
+      <section className="relative py-16">
+        <Image
+          src="/img/event.jpg"
+          alt="Événements à l&apos;affiche"
+          fill
+          className="object-cover"
+          quality={80}
+        />
         <div className="absolute inset-0 bg-black bg-opacity-50"></div>
         <div className="relative z-10">
           <h2 className="text-2xl font-bold text-blancCasse mb-8 text-center">
             Événements à l'affiche
           </h2>
+
           {upcomingEvents.length > 0 ? (
-            <Swiper
-              spaceBetween={30}
-              centeredSlides={true}
-              autoplay={{
-                delay: 2500,
-                disableOnInteraction: false,
-              }}
-              pagination={{
-                clickable: true,
-              }}
-              navigation={true}
-              modules={[Autoplay, Pagination, Navigation]}
-              className="mySwiper"
-            >
-              {upcomingEvents.map((event) => (
-                <SwiperSlide key={event.id}>
-                  <div className="flex justify-center">
-                    <EventCard {...event} />
-                  </div>
-                </SwiperSlide>
-              ))}
-            </Swiper>
+            <div className="px-12">
+              <Swiper
+                slidesPerView={1}
+                spaceBetween={30}
+                centeredSlides={true}
+                loop={true}
+                autoplay={{
+                  delay: 5000,
+                  disableOnInteraction: true,
+                }}
+                pagination={{
+                  clickable: true,
+                  dynamicBullets: true,
+                }}
+                navigation={{
+                  nextEl: '.swiper-button-next',
+                  prevEl: '.swiper-button-prev',
+                }}
+                modules={[Autoplay, Pagination, Navigation]}
+                breakpoints={{
+                  640: { slidesPerView: 1 },
+                  768: { slidesPerView: 1 },
+                  1024: { slidesPerView: 1 },
+                }}
+                className="relative"
+              >
+                {upcomingEvents.map((event) => (
+                  <SwiperSlide key={event.id}>
+                    <div className="flex justify-center items-center h-full py-3">
+                      <div className="w-full max-w-md mx-auto">
+                        <EventCard {...event} />
+                      </div>
+                    </div>
+                  </SwiperSlide>
+                ))}
+
+                <div className="swiper-button-prev !text-orMetallique !left-0"></div>
+                <div className="swiper-button-next !text-orMetallique !right-0"></div>
+              </Swiper>
+            </div>
           ) : (
             <p className="text-blancCasse text-lg text-center">
               Aucun événement à l'affiche pour le moment.
